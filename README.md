@@ -1,5 +1,8 @@
 # caddy-middleware
-
+## Build
+```
+xcaddy build --output ./caddy.exe --with github.com/liornabat/hocoos-middleware
+```
 ## Example
 ````json
 {
