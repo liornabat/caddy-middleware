@@ -1,0 +1,12 @@
+
+localhost {
+    route /* {
+        hocoos_middleware stdout
+        respond "Hello, world!"
+    }
+}
+
+
+
+
+

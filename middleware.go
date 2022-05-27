@@ -58,7 +58,7 @@ func (m *HocoosMiddleware) Validate() error {
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m HocoosMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	m.w.Write([]byte(r.RemoteAddr))
+	m.w.Write([]byte(r.Host))
 	return next.ServeHTTP(w, r)
 }
 
