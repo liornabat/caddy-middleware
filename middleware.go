@@ -2,33 +2,29 @@ package hocoosmiddleware
 
 import (
 	"fmt"
-	"io"
-	"net/http"
-	"os"
-
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"go.uber.org/zap"
+	"net/http"
 )
 
 func init() {
-	caddy.RegisterModule(HocoosMiddleware{})
+	caddy.RegisterModule(&HocoosMiddleware{})
 	httpcaddyfile.RegisterHandlerDirective("hocoos_middleware", parseCaddyfile)
 }
 
-// HocoosMiddleware implements an HTTP handler that writes the
-// visitor's IP address to a file or stream.
 type HocoosMiddleware struct {
-	// The file or stream to write to. Can be "stdout"
-	// or "stderr".
-	Output string `json:"output,omitempty"`
+	RedisURL   string `json:"redis_url"`
+	PathPrefix string `json:"path_prefix"`
 
-	w io.Writer
+	logger *zap.SugaredLogger
+	client *redisClient
 }
 
 // CaddyModule returns the Caddy module information.
-func (HocoosMiddleware) CaddyModule() caddy.ModuleInfo {
+func (m *HocoosMiddleware) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.hocoos_middleware",
 		New: func() caddy.Module { return new(HocoosMiddleware) },
@@ -37,36 +33,68 @@ func (HocoosMiddleware) CaddyModule() caddy.ModuleInfo {
 
 // Provision implements caddy.Provisioner.
 func (m *HocoosMiddleware) Provision(ctx caddy.Context) error {
-	switch m.Output {
-	case "stdout":
-		m.w = os.Stdout
-	case "stderr":
-		m.w = os.Stderr
-	default:
-		return fmt.Errorf("an output stream is required")
+	if err := m.Validate(); err != nil {
+		return err
+	}
+	m.logger = ctx.Logger(m).Sugar()
+	if m.PathPrefix == "" {
+		m.PathPrefix = "Caddy/Config/Domains"
+	}
+	m.client = newRedisClient()
+	if err := m.client.init(ctx, m.RedisURL, m.logger); err != nil {
+		return err
 	}
 	return nil
 }
 
 // Validate implements caddy.Validator.
 func (m *HocoosMiddleware) Validate() error {
-	if m.w == nil {
-		return fmt.Errorf("no writer")
+	if m.RedisURL == "" {
+		return fmt.Errorf("redis_url is required")
 	}
 	return nil
 }
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
-func (m HocoosMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	m.w.Write([]byte(r.Host))
-	return next.ServeHTTP(w, r)
+func (m *HocoosMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+
+	m.logger.Debugf("%s %s", r.Method, r.URL.Path)
+	key := fmt.Sprintf("%s/%s", m.PathPrefix, r.Host)
+	data, err := m.client.get(r.Context(), key)
+	if err != nil {
+		m.logger.Debugf("get %s error: %v", key, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_, writeErr := w.Write([]byte(err.Error()))
+		return writeErr
+	}
+	m.logger.Debugf("get %s: %s", key, data)
+	switch data {
+	case "0":
+		w.WriteHeader(http.StatusNotFound)
+		_, err := w.Write([]byte(fmt.Sprintf("%s host not allowed", r.Host)))
+		return err
+	case "1":
+		return next.ServeHTTP(w, r)
+	default:
+		w.WriteHeader(http.StatusInternalServerError)
+		_, writeErr := w.Write([]byte(fmt.Sprintf("permission data for host %s not found", r.Host)))
+		return writeErr
+	}
 }
 
 // UnmarshalCaddyfile implements caddyfile.Unmarshaler.
 func (m *HocoosMiddleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
-		if !d.Args(&m.Output) {
-			return d.ArgErr()
+		key := d.Val()
+		var value string
+		if !d.Args(&value) {
+			continue
+		}
+		switch key {
+		case "redis_url":
+			m.RedisURL = value
+		case "path_prefix":
+			m.PathPrefix = value
 		}
 	}
 	return nil
@@ -74,7 +102,7 @@ func (m *HocoosMiddleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 // parseCaddyfile unmarshals tokens from h into a new HocoosMiddleware.
 func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
-	var m HocoosMiddleware
+	var m *HocoosMiddleware
 	err := m.UnmarshalCaddyfile(h.Dispenser)
 	return m, err
 }

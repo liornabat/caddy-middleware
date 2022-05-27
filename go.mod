@@ -1,9 +1,11 @@
 module github.com/liornabat/hocoos-middleware
 
-
 go 1.17
 
-require github.com/caddyserver/caddy/v2 v2.5.1
+require (
+	github.com/caddyserver/caddy/v2 v2.5.1
+	github.com/go-redis/redis/v7 v7.4.1
+)
 
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect

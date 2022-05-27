@@ -1,0 +1,16 @@
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - xcaddy build --output ./caddy.exe --with github.com/liornabat/hocoos-middleware=./
+      - ./caddy run --config Caddyfile_test.json
+  run:
+    cmds:
+    - ./caddy run --config Caddyfile_test.json
+  redis:
+    cmds:
+      - kubectl port-forward svc/redis-master 6379
+  release:
+    cmds:
+      - xcaddy build --output ./caddy.exe --with github.com/liornabat/hocoos-middleware
