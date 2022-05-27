@@ -13,4 +13,4 @@ tasks:
       - kubectl port-forward svc/redis-master 6379
   release:
     cmds:
-      - xcaddy build --output ./caddy.exe --with github.com/liornabat/hocoos-middleware
+      - xcaddy build --output ./caddy.exe --with github.com/liornabat/hocoos-middleware@v0.1.0
