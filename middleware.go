@@ -61,14 +61,12 @@ func (m *HocoosMiddleware) Validate() error {
 func (m *HocoosMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 
 	m.logger.Debugf("%s %s", r.Method, r.URL.Path)
-	key := fmt.Sprintf("%s/%s", m.PathPrefix, r.Host)
-
-	labels := strings.Split(key, ".")
+	labels := strings.Split(r.Host, ".")
 	domain := labels[len(labels)-2] + "." + labels[len(labels)-1]
 	if domain == "hocoos.cafe" || domain == "hocoos.com" {
 		return next.ServeHTTP(w, r)
 	}
-
+	key := fmt.Sprintf("%s/%s", m.PathPrefix, r.Host)
 	data, err := m.client.get(r.Context(), key)
 	if err != nil {
 		m.logger.Debugf("get %s error: %v", key, err)
