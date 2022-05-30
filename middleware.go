@@ -2,12 +2,14 @@ package hocoosmiddleware
 
 import (
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 func init() {
@@ -59,6 +61,11 @@ func (m *HocoosMiddleware) Validate() error {
 func (m *HocoosMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 
 	m.logger.Debugf("%s %s", r.Method, r.URL.Path)
+	labels := strings.Split(r.Host, ".")
+	domain := labels[len(labels)-2] + "." + labels[len(labels)-1]
+	if domain == "hocoos.cafe" || domain == "hocoos.com" {
+		return next.ServeHTTP(w, r)
+	}
 	key := fmt.Sprintf("%s/%s", m.PathPrefix, r.Host)
 	data, err := m.client.get(r.Context(), key)
 	if err != nil {
