@@ -4,7 +4,7 @@ tasks:
   default:
     cmds:
       - xcaddy build --output ./caddy.exe --with github.com/liornabat/hocoos-middleware=./
-      - ./caddy run --config Caddyfile_test.json
+      - ./caddy.exe run --config Caddyfile_test.json
   run:
     cmds:
     - ./caddy run --config Caddyfile_test.json

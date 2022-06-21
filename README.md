@@ -24,7 +24,9 @@ xcaddy build --output ./caddy.exe --with github.com/liornabat/hocoos-middleware@
               "handle": [
                 {
                   "handler": "hocoos_middleware",
-                  "redis_url": "redis://username:password@localhost:6379/0"
+                  "redis_url": "redis://username:password@localhost:6379/0",
+                  "cache_ttl": 60,
+                  "exclude_hosts": "hocoos.cafe,hocoos.com,localhost"
                 },
                 {
                 "handler": "static_response",
